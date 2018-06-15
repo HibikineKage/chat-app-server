@@ -1,0 +1,3 @@
+[submodule "chat-app-front"]
+	path = chat-app-front
+	url = git@github.com:HibikineKage/chat-app-front.git
