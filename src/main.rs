@@ -1,24 +1,26 @@
 #[macro_use]
-extern crate tokio;
-extern crate diesel;
+extern crate env_logger;
+extern crate ws;
 
-use tokio::io::copy;
-use tokio::net::TcpListener;
-use tokio::prelude::*;
+use ws::{listen, Builder, Sender, Settings};
 
 fn main() {
-    let addr = "127.0.0.1:12345".parse().unwrap();
-    let listener = TcpListener::bind(&addr).expect("unable to bind TCP listener");
-    let server = listener
-        .incoming()
-        .map_err(|e| eprintln!("accept failed = {:?}", e))
-        .for_each(|sock| {
-            let (reader, writer) = sock.split();
-            let bytes_copied = copy(reader, writer);
-            let handle_conn = bytes_copied
-                .map(|amt| println!("wrote {:?} bytes", amt))
-                .map_err(|err| eprintln!("IO error {:?}", err));
-            tokio::spawn(handle_conn)
-        });
-    tokio::run(server);
+    env_logger::init();
+    if let Err(error) = Builder::new()
+        .with_settings(Settings {
+            max_connections: 10_000,
+            encrypt_server: true,
+            ..Settings::default()
+        })
+        .build(|out: Sender| {
+            move |msg| {
+                println!("server got message '{}'. ", msg);
+                out.send(msg)
+            }
+        })
+        .unwrap()
+        .listen("localhost:12345")
+    {
+        println!("Failed to create WebSocket due to {:?}", error)
+    }
 }
